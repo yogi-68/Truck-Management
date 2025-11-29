@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Truck, FileText, DollarSign, Package, TrendingUp, AlertCircle } from 'lucide-react';
@@ -32,74 +32,52 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDashboardStats();
-  }, []);
-
-  async function fetchDashboardStats() {
+  const fetchDashboardStats = useCallback(async () => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
       
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const monthISO = firstDayOfMonth.toISOString();
 
-      // Trips today
-      const { count: tripsToday } = await supabase
-        .from('trips')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', today.toISOString());
-
-      // GC Notes today
-      const { count: gcNotesToday } = await supabase
-        .from('gc_notes')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', today.toISOString());
-
-      // Revenue today
-      const { data: revenueData } = await supabase
-        .from('gc_notes')
-        .select('total_amount')
-        .gte('created_at', today.toISOString())
-        .eq('payment_status', 'paid');
-
-      const revenueToday = revenueData?.reduce((sum: number, item: any) => sum + (item.total_amount || 0), 0) || 0;
-
-      // Revenue this month
-      const { data: revenueMonthData } = await supabase
-        .from('gc_notes')
-        .select('total_amount')
-        .gte('created_at', firstDayOfMonth.toISOString())
-        .eq('payment_status', 'paid');
-
-      const revenueMonth = revenueMonthData?.reduce((sum: number, item: any) => sum + (item.total_amount || 0), 0) || 0;
-
-      // Expenses this month
-      const { data: expensesData } = await supabase
-        .from('trips')
-        .select('total_trip_expense')
-        .gte('created_at', firstDayOfMonth.toISOString());
-
-      const expensesMonth = expensesData?.reduce((sum: number, item: any) => sum + (item.total_trip_expense || 0), 0) || 0;
-
-      // Pending deliveries
-      const { count: pendingDeliveries } = await supabase
-        .from('gc_notes')
-        .select('*', { count: 'exact', head: true })
-        .eq('delivery_status', 'pending');
-
-      // ToPay amount
-      const { data: topayData } = await supabase
-        .from('gc_notes')
-        .select('total_amount')
-        .eq('payment_status', 'topay');
+      // Execute all queries in parallel for faster loading
+      const [
+        { count: tripsToday },
+        { count: gcNotesToday },
+        { data: revenueData },
+        { data: revenueMonthData },
+        { data: expensesData },
+        { count: pendingDeliveries },
+        { data: topayData },
+        { count: runningTrips }
+      ] = await Promise.all([
+        // Trips today
+        supabase.from('trips').select('*', { count: 'exact', head: true }).gte('created_at', todayISO),
+        
+        // GC Notes today
+        supabase.from('gc_notes').select('*', { count: 'exact', head: true }).gte('created_at', todayISO),
+        
+        // Revenue today
+        supabase.from('gc_notes').select('total_amount').gte('created_at', todayISO).eq('payment_status', 'paid'),
+        
+        // Revenue this month
+        supabase.from('gc_notes').select('total_amount').gte('created_at', monthISO).eq('payment_status', 'paid'),
+        
+        // Expenses this month
+        supabase.from('trips').select('total_trip_expense').gte('created_at', monthISO),
+        
+        // Pending deliveries
+        supabase.from('gc_notes').select('*', { count: 'exact', head: true }).eq('delivery_status', 'pending'),
+        
+        // ToPay amount
+        supabase.from('gc_notes').select('total_amount').eq('payment_status', 'topay'),
+        
+        // Running trips
+        supabase.from('trips').select('*', { count: 'exact', head: true }).eq('trip_status', 'running')
+      ]);
 
       const topayAmount = topayData?.reduce((sum: number, item: any) => sum + (item.total_amount || 0), 0) || 0;
-
-      // Running trips
-      const { count: runningTrips } = await supabase
-        .from('trips')
-        .select('*', { count: 'exact', head: true })
-        .eq('trip_status', 'running');
 
       setStats({
         tripsToday: tripsToday || 0,
@@ -116,7 +94,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [fetchDashboardStats]);
 
   const netProfit = stats.revenueMonth - stats.expensesMonth;
 

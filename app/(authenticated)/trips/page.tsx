@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,16 +14,13 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchTrips();
-  }, []);
-
-  async function fetchTrips() {
+  const fetchTrips = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('trips')
         .select('*, trucks(lorry_number), drivers(driver_name)')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50); // Limit to recent 50 trips for faster loading
 
       if (error) throw error;
       setTrips(data || []);
@@ -32,10 +29,21 @@ export default function TripsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function completeTrip(tripId: string) {
+  useEffect(() => {
+    fetchTrips();
+  }, [fetchTrips]);
+
+  const completeTrip = useCallback(async (tripId: string) => {
     if (!confirm('Mark this trip as completed?')) return;
+
+    // Optimistic update
+    setTrips(prev => prev.map(trip => 
+      trip.id === tripId 
+        ? { ...trip, trip_status: 'completed', ending_time: new Date().toISOString() }
+        : trip
+    ));
 
     try {
       const { error } = await supabase
@@ -52,18 +60,21 @@ export default function TripsPage() {
         title: "Success",
         description: "Trip marked as completed",
       });
-      fetchTrips();
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
+      fetchTrips(); // Revert on error
     }
-  }
+  }, [toast, fetchTrips]);
 
-  async function deleteTrip(tripId: string) {
+  const deleteTrip = useCallback(async (tripId: string) => {
     if (!confirm('Are you sure you want to delete this trip? This action cannot be undone.')) return;
+
+    // Optimistic update
+    setTrips(prev => prev.filter(trip => trip.id !== tripId));
 
     try {
       const { error } = await supabase
@@ -77,15 +88,15 @@ export default function TripsPage() {
         title: "Success",
         description: "Trip deleted successfully",
       });
-      fetchTrips();
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to delete trip",
         variant: "destructive",
       });
+      fetchTrips(); // Revert on error
     }
-  }
+  }, [toast, fetchTrips]);
 
   if (loading) {
     return (

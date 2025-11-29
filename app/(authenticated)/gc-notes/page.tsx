@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,11 +14,7 @@ export default function GCNotesPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchGCNotes();
-  }, []);
-
-  async function fetchGCNotes() {
+  const fetchGCNotes = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('gc_notes')
@@ -33,9 +29,18 @@ export default function GCNotesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function updateDeliveryStatus(gcId: string, status: string) {
+  useEffect(() => {
+    fetchGCNotes();
+  }, [fetchGCNotes]);
+
+  const updateDeliveryStatus = useCallback(async (gcId: string, status: string) => {
+    // Optimistic update
+    setGcNotes(prev => prev.map(gc => 
+      gc.id === gcId ? { ...gc, delivery_status: status } : gc
+    ));
+
     try {
       const { error } = await supabase
         .from('gc_notes')
@@ -48,17 +53,22 @@ export default function GCNotesPage() {
         title: "Success",
         description: `Delivery status updated to ${status}`,
       });
-      fetchGCNotes();
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
+      fetchGCNotes();
     }
-  }
+  }, [toast, fetchGCNotes]);
 
-  async function updatePaymentStatus(gcId: string, status: string) {
+  const updatePaymentStatus = useCallback(async (gcId: string, status: string) => {
+    // Optimistic update
+    setGcNotes(prev => prev.map(gc => 
+      gc.id === gcId ? { ...gc, payment_status: status } : gc
+    ));
+
     try {
       const { error } = await supabase
         .from('gc_notes')
@@ -71,18 +81,21 @@ export default function GCNotesPage() {
         title: "Success",
         description: `Payment status updated to ${status}`,
       });
-      fetchGCNotes();
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
+      fetchGCNotes();
     }
-  }
+  }, [toast, fetchGCNotes]);
 
-  async function deleteGCNote(gcId: string) {
+  const deleteGCNote = useCallback(async (gcId: string) => {
     if (!confirm('Are you sure you want to delete this GC Note? This action cannot be undone.')) return;
+
+    // Optimistic update
+    setGcNotes(prev => prev.filter(gc => gc.id !== gcId));
 
     try {
       const { error } = await supabase
@@ -96,15 +109,15 @@ export default function GCNotesPage() {
         title: "Success",
         description: "GC Note deleted successfully",
       });
-      fetchGCNotes();
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to delete GC Note",
         variant: "destructive",
       });
+      fetchGCNotes();
     }
-  }
+  }, [toast, fetchGCNotes]);
 
   if (loading) {
     return (

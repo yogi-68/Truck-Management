@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,16 +15,13 @@ function TrucksTable() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchTrucks();
-  }, []);
-
-  async function fetchTrucks() {
+  const fetchTrucks = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('trucks')
         .select('*')
-        .order('created_at', { ascending: false});
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (error) throw error;
       setTrucks(data || []);
@@ -33,20 +30,26 @@ function TrucksTable() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function deleteTruck(id: string) {
+  useEffect(() => {
+    fetchTrucks();
+  }, [fetchTrucks]);
+
+  const deleteTruck = useCallback(async (id: string) => {
     if (!confirm('Are you sure you want to delete this truck?')) return;
+
+    setTrucks(prev => prev.filter(truck => truck.id !== id));
 
     try {
       const { error } = await supabase.from('trucks').delete().eq('id', id);
       if (error) throw error;
       toast({ title: "Success", description: "Truck deleted successfully" });
-      fetchTrucks();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+      fetchTrucks();
     }
-  }
+  }, [toast, fetchTrucks]);
 
   if (loading) return <Card><CardContent className="p-6">Loading...</CardContent></Card>;
 
