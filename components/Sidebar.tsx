@@ -12,7 +12,9 @@ import {
   BarChart3, 
   Settings,
   Users,
-  LogOut
+  LogOut,
+  Menu,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -31,6 +33,7 @@ export default function Sidebar() {
   const { toast } = useToast();
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -80,62 +83,87 @@ export default function Sidebar() {
   }
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-gray-900 text-white">
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-center border-b border-gray-800">
-        <Truck className="h-8 w-8 mr-2" />
-        <span className="text-xl font-bold">Truck Manager</span>
-      </div>
+    <>
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-gray-900 text-white rounded-md"
+      >
+        {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+      </button>
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {navigation.map((item) => {
-          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                isActive
-                  ? 'bg-gray-800 text-white'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-              )}
-            >
-              <item.icon className="mr-3 h-5 w-5" />
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
+      {/* Overlay for mobile */}
+      {isMobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
-      {/* User Section */}
-      <div className="border-t border-gray-800 p-4 space-y-3">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <Users className="h-8 w-8 text-gray-400" />
-          </div>
-          <div className="ml-3 flex-1 min-w-0">
-            {loading ? (
-              <p className="text-sm text-gray-400">Loading...</p>
-            ) : (
-              <>
-                <p className="text-sm font-medium truncate">{user?.name || 'User'}</p>
-                <p className="text-xs text-gray-400 truncate">{user?.email || ''}</p>
-              </>
-            )}
-          </div>
+      {/* Sidebar */}
+      <div
+        className={cn(
+          "fixed lg:static inset-y-0 left-0 z-40 flex h-screen w-64 flex-col bg-gray-900 text-white transition-transform duration-300 ease-in-out",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
+        {/* Logo */}
+        <div className="flex h-16 items-center justify-center border-b border-gray-800">
+          <Truck className="h-8 w-8 mr-2" />
+          <span className="text-xl font-bold">Truck Manager</span>
         </div>
-        <Button
-          onClick={handleLogout}
-          variant="outline"
-          size="sm"
-          className="w-full justify-start text-gray-300 border-gray-700 hover:bg-gray-800 hover:text-white"
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </Button>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 px-3 py-4">
+          {navigation.map((item) => {
+            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={cn(
+                  'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                  isActive
+                    ? 'bg-gray-800 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                )}
+              >
+                <item.icon className="mr-3 h-5 w-5" />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* User Section */}
+        <div className="border-t border-gray-800 p-4 space-y-3">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Users className="h-8 w-8 text-gray-400" />
+            </div>
+            <div className="ml-3 flex-1 min-w-0">
+              {loading ? (
+                <p className="text-sm text-gray-400">Loading...</p>
+              ) : (
+                <>
+                  <p className="text-sm font-medium truncate">{user?.name || 'User'}</p>
+                  <p className="text-xs text-gray-400 truncate">{user?.email || ''}</p>
+                </>
+              )}
+            </div>
+          </div>
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            size="sm"
+            className="w-full justify-start text-gray-300 border-gray-700 hover:bg-gray-800 hover:text-white"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </Button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -53,12 +53,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 flex flex-col items-center">
           <div className="flex items-center gap-2 mb-2">
-            <Truck className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">Truck Manager</span>
+            <Truck className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+            <span className="text-xl sm:text-2xl font-bold">Truck Manager</span>
           </div>
           <CardTitle className="text-2xl">Sign In</CardTitle>
           <CardDescription>
