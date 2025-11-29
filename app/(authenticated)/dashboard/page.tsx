@@ -77,6 +77,9 @@ export default function DashboardPage() {
         supabase.from('trips').select('*', { count: 'exact', head: true }).eq('trip_status', 'running')
       ]);
 
+      const revenueToday = revenueData?.reduce((sum: number, item: any) => sum + (item.total_amount || 0), 0) || 0;
+      const revenueMonth = revenueMonthData?.reduce((sum: number, item: any) => sum + (item.total_amount || 0), 0) || 0;
+      const expensesMonth = expensesData?.reduce((sum: number, item: any) => sum + (item.total_trip_expense || 0), 0) || 0;
       const topayAmount = topayData?.reduce((sum: number, item: any) => sum + (item.total_amount || 0), 0) || 0;
 
       setStats({
